@@ -11,7 +11,10 @@
 # tz_local:             Local time zone (used for determining the time of day & day of the week)
 # tz:                   Standard time zone (used for everything else)
 # path_data:            Path to weather data (temperature, global radiation, wind speed) and customer data
-# file_cust_config:     File name of the excel sheet with the customer parameters
+# file_wh_hp_config:    File name of the excel sheet with the electric water heater and heat pump configurations
+# file_wh_hp_data:      File name of the csv file with the electric water heater and heat pump data
+# file_ev_config:       File name of the excel sheet with the EV configurations
+# file_ev_data:         File name of the csv file with the EV data
 # file_weather:         csv file with the weather data
 # file_weather_n:       csv file with the normalized weather data
 # file_infl_load:       csv file with the inflexible load time series
@@ -42,7 +45,10 @@ K: 96
 tz_local: "Europe/Zurich"
 tz: "UTC"
 path_data: "sim_data"
-file_cust_config: "cust_config.xlsx"
+file_wh_hp_config: "wh_hp_config.xlsx"
+file_wh_hp_data: "wh_hp_data.csv"
+file_ev_config: "ev_config.xlsx"
+file_ev_data: "ev_data.csv"
 file_weather: "weather_data.csv"
 file_weather_n: "weather_data_norm.csv"
 file_infl_load: "P_infl_load.csv"

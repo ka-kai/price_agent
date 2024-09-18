@@ -8,9 +8,8 @@ import numpy as np
 import pandas as pd
 import pytz
 
-from .customer import Customer
-from .ext_dev_controllers import NoBlocking, Ripple, DynamicPriceThreshold
-from .verification import verify_action
+from .ev_sim import EVs
+from .wh_hp_sim import WHHPs
 from .policies import ProportionalPriceInflPerDay
 
 
@@ -74,26 +73,9 @@ class SimEnv(gym.Env):
             "The weather data does not end one day after the simulation period;" \
             "this is required because the future weather data is part of the observation"
 
-        # Create a dictionary with the customer data
-        self.dict_cust = {}
-        self.df_cust_config = pd.read_excel(self.config.path_cust_config, index_col=0)
-        for c_id in self.df_cust_config.index:
-            # Create customer object
-            c = Customer(c_id=c_id,
-                         dict_cust_config=self.df_cust_config.loc[c_id].to_dict(),
-                         arr_T_amb=self.weather_data["t_2m_C"].round(4),
-                         path_data=self.config.path_data / "customer_data"
-                         )
-            c.K = self.config.K  # added such that customer object can be passed to verification
-            # Add it to the dictionary
-            self.dict_cust[c_id] = c
-            if self.config.env_type == "evaluation" or self.config.flag_cust_res:
-                c.df_hist = pd.DataFrame(dtype="float32", columns=["price",
-                                                                   "WH_u", "WH_p", "WH_T", "WH_rho",
-                                                                   "HP_u", "HP_p", "HP_T", "HP_rho",
-                                                                   "EV_u", "EV_p", "EV_SOC"], index=self.daterange)
-        # Initialize the action history
-        self._initialize_customer_action_hist()
+        # Initialize the customer devices
+        self.whhps = WHHPs(config=self.config, arr_T_amb=self.weather_data["t_2m_C"].round(4), daterange=self.daterange)
+        self.evs = EVs(config=self.config, daterange=self.daterange)
 
         # Read the inflexible net load (inflexible consumption - generation)
         p_infl_load = read_time_series_from_file(self.config.path_infl_load, self.config.tz).squeeze()  # df only has one column
@@ -116,14 +98,6 @@ class SimEnv(gym.Env):
             for col in self.df_msd.columns:
                 self.df_msd[col] = pd.to_datetime(self.df_msd[col])  # convert to datetime
         self._initialize_prices()
-
-        # Initialize external device controller;
-        if self.config.dev_ctrl == "none":
-            self.dev_ctrl = NoBlocking()
-        elif self.config.dev_ctrl == "ripple":
-            self.dev_ctrl = Ripple(self.df_cust_config, self.tz_local)
-        elif self.config.dev_ctrl == "dynamic":
-            self.dev_ctrl = DynamicPriceThreshold()
 
         # Define observation space; all values are normalized between -1 and 1 --> "_n"
         # Using sin/cos encoding to capture cyclic pattern of time indicators; e.g., midnight (00:00) corresponds to x = 0, y = 1 for the quarter-hour of the day; it then moves clock-wise
@@ -176,21 +150,6 @@ class SimEnv(gym.Env):
         # --> convert to [-1, 1]
         self.price_full_hist_n = p.actions.apply(lambda x: self._discrete_action_to_n(x))
 
-        return
-
-    def _initialize_customer_action_hist(self):
-        """
-        Initialize the action history for the customer devices; called in __init__
-        Logic for initializing the action history:
-        1)  The last value should be 0, such that all devices are initially off --> avoids major peak in the first time step
-            Like this, the hysteresis controller will wait until the temperature drops below T_LO, which varies between customers
-        2)  Both 0 and 1 should be feasible in the next time step
-            --> EWH:    all 1 except for last action; the last action is set to 0
-                HP:     all 1 except for last K_min_block_HP actions; these are set to 0
-        """
-        for c_id, c in self.dict_cust.items():
-            c.wh.action_hist = [1] * (self.config.K - 2) + [0]  # why not config.a.h? -->  could be < 95; verification requires last 95 time steps
-            c.hp.action_hist = [1] * (self.config.K - 1 - c.hp.K_min_block) + [0] * c.hp.K_min_block
         return
 
     def _get_obs(self):
@@ -255,7 +214,6 @@ class SimEnv(gym.Env):
         return
 
     def _sim_ts(self):
-        customer_results = []
         dict_price_24h_fc = {}
         if self.config.dev_ctrl == "dynamic":
             # Determine the price forecast (does not contain the current price, but only the remaining 23.75 hours)
@@ -266,42 +224,10 @@ class SimEnv(gym.Env):
                 # Note: instead of rounding the prices above and when passing price_next below, we could also round
                 # self.price_n at the beginning of the step function; however, this was not implemented like this in the SEST 2024 paper
 
-        for c in self.dict_cust.values():
-            if not np.isnan(c.ev.SOC_arrival_home[self.ts]):  # the EV just got home --> update the SOC
-                c.ev.SOC_prev = c.ev.SOC_arrival_home[self.ts]
-
-            # Determine the blocking signals
-            if self.config.dev_ctrl == "dynamic":
-                WH_u, HP_u, EV_u = self.dev_ctrl.get_control(c=c, ts=self.ts, price_next=self.price_n, price_24h_fc=dict_price_24h_fc[c.price_fc_group], DT=self.config.DT)
-                # Verify the blocking signals
-                _, WH_u = verify_action(config=c, prev_applied=c.wh.action_hist, action=WH_u, dev="wh")
-                _, HP_u = verify_action(config=c, prev_applied=c.hp.action_hist, action=HP_u, dev="hp")
-            else:
-                WH_u, HP_u, EV_u = self.dev_ctrl.get_control(ts=self.ts, c=c)
-
-            # Determine the customer's demand from flexible loads
-            # EWH
-            WH_p = c.wh.sim_ts(ts=self.ts, u=WH_u)
-            WH_T, WH_rho = c.wh.T_prev, c.wh.rho
-            c.wh.action_hist = c.wh.action_hist[1:] + [int(WH_u)]
-            # HP
-            HP_p = c.hp.sim_ts(ts=self.ts, u=HP_u)
-            HP_T, HP_rho = c.hp.T_prev, c.hp.rho
-            c.hp.action_hist = c.hp.action_hist[1:] + [int(HP_u)]
-            # EV
-            EV_p = c.ev.sim_ts(ts=self.ts, u=EV_u)
-            EV_SOC = c.ev.SOC_prev
-
-            # Save the results
-            if self.config.env_type == "evaluation" or self.config.flag_cust_res:
-                # Note: the values get overwritten when the training loops through the data multiple times
-                c.df_hist.loc[self.ts] = [self.price_n,  # why also saving the price --> makes analysis easier;
-                                          WH_u, WH_p, WH_T, WH_rho, HP_u, HP_p, HP_T, HP_rho, EV_u, EV_p, EV_SOC]
-            customer_results.append((WH_p, HP_p, EV_p))
-
         # Determine the load components
-        self.p_infl = float(self.p_infl_net[self.ts]) + sum([c.arr_p_infl[self.ts] for c in self.dict_cust.values()])  # total inflexible load
-        self.p_wh, self.p_hp, self.p_ev = [sum(l) for l in zip(*customer_results)]  # total load per device type, keep this separate, it is used for callback (see step())
+        self.p_infl = float(self.p_infl_net[self.ts])  # total inflexible load; no individual inflexible load anymore
+        self.p_wh, self.p_hp = self.whhps.sim(ts=self.ts, price_next=round(self.price_n, 4), dict_price_24h_fc=dict_price_24h_fc.copy())  # copy dict to avoid changing the original
+        self.p_ev = self.evs.sim(ts=self.ts, price_next=round(self.price_n, 4), dict_price_24h_fc=dict_price_24h_fc.copy())
         self.p_flx = self.p_wh + self.p_hp + self.p_ev  # total flexible load
 
         # Determine the total load and normalize it
@@ -356,12 +282,7 @@ class SimEnv(gym.Env):
             self._get_time()
             self._get_time_hist()
 
-            # EV SOC; if we keep it unchanged, this might lead to infeasibility
-            for c_id, c in self.dict_cust.items():
-                if c.has_ev:
-                    c.ev.SOC_prev = 1
-
-            # Keep other values for customer devices, prices, and load history as is --> different starting point when training over same data multiple times
+            # Keep other values for customer devices, prices, and load history as is --> different starting point when training over same data multiple times;
             # At the beginning, the values are initialized in __init__
 
         # EVALUATION environment
@@ -446,6 +367,6 @@ class SimEnv(gym.Env):
 
         # Save the results of the individual customers; gets overwritten after each episode --> only for sporadic checks
         if (self.config.env_type == "evaluation" or self.config.flag_cust_res) and self.truncated:
-            for c_id, c in self.dict_cust.items():
-                c.df_hist.to_csv(self.config.output_path / f"df_{c_id}.csv", sep=";", index=True, header=True, index_label="time")
+            self.whhps.save_results(self.config.output_path / f"df_whhps.csv")
+            self.evs.save_results(self.config.output_path / f"df_evs.csv")
         return observation, reward, terminated, self.truncated, dict_info
