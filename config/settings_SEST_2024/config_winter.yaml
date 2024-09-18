@@ -1,0 +1,112 @@
+####################################################################################################################
+############################################### General settings ###################################################
+####################################################################################################################
+# start_date:           Start date, format "yyyy-mm-dd";
+#                       note: before start_data 00:00:00, there must be h more time steps of data
+#                       (see history in agent settings)
+# start_date_eval:      Start date for final evaluation, format "yyyy-mm-dd"
+# start_date_eval_cons: Start date of time window to consider from final evaluation, format "yyyy-mm-dd"
+# DT:                   Duration of one time step in h
+# K:                    Number of time steps per day
+# tz_local:             Local time zone (used for determining the time of day & day of the week)
+# tz:                   Standard time zone (used for everything else)
+# path_data:            Path to weather data (temperature, global radiation, wind speed) and customer data
+# file_cust_config:     File name of the excel sheet with the customer parameters
+# file_weather:         csv file with the weather data
+# file_weather_n:       csv file with the normalized weather data
+# file_infl_load:       csv file with the inflexible load time series
+# file_pv:              csv file with the PV power time series
+# file_msd:             csv file with most similar day for each time step
+# file_msd_eval:        csv file with most similar day for each time step for final evaluation
+# fac_infl_load:        Factor used to scale inflexible load (base, not the profiles of the individual customers)
+# fac_pv:               Factor used to scale the pv power (base, not the profiles of the individual customers)
+# days_eps:             Days per episode
+# days_eval:            Days used for final evaluation
+# n_weeks_msd:          Number of weeks considered in most similar day method
+# th:                   Threshold used in the reward function
+# fac_norm_p:           Factor to normalize load values; in kW
+# flag_cust_res:        Whether customer results should be saved after every episode
+# flag_rb:              Whether to save the replay buffer
+# flag_eval_intermediate: Whether to perform intermediate evaluation
+# n_price_fc_group:     Number of price forecast groups;
+#                       file_msd / file_msd_eval must contain at least this number of columns
+# min_soc_factor:       The EV must first reach minimum_soc_factor * desired_soc before charging is controlled
+# modulating_HP_th:     Heat pumps for which the rated power is >= the specified value are considered modulating
+# modulating_HP_min_factor: Factor to compute minimum power for modulating heat pumps
+####################################################################################################################
+start_date: "2021-11-01"
+start_date_eval: "2021-11-01"
+start_date_eval_cons: "2022-01-18"
+DT: 0.25
+K: 96
+tz_local: "Europe/Zurich"
+tz: "UTC"
+path_data: "sim_data"
+file_cust_config: "cust_config.xlsx"
+file_weather: "weather_data.csv"
+file_weather_n: "weather_data_norm.csv"
+file_infl_load: "P_infl_load.csv"
+file_pv: "P_pv_1kW.csv"
+file_msd: "msd_2021-11-01_2022-01-17_8_True.csv"
+file_msd_eval: "msd_2021-11-01_2022-02-28_8_True.csv"
+fac_infl_load: 0.59  # 30 households
+fac_pv: 50
+days_eps: 78
+days_eval: 120
+n_weeks_msd: 8
+th: 60
+fac_norm_p: 200
+flag_cust_res: False
+flag_rb: False
+n_price_fc_group: 5
+minimum_soc_factor: 0  # not considered in SEST 2024 paper
+modulating_HP_th: 100  # no modulating HPs in SEST 2024 paper
+modulating_HP_min_factor: 0  # no modulating HPs in SEST 2024 paper
+####################################################################################################################
+############################################# Cost function weights ################################################
+####################################################################################################################
+# w1:                  Weight of penalty for exceeding the threshold
+#                      1 % above threshold --> negative reward of w1 * (0.01 **2)
+# w2:                  Weight of the power penalty
+# w3:                  Weight of the penalty for a change in the normalized price
+# w4:                  Weight if price would be out of the defined price range
+#                      (only relevant for price change as action, i.e., "action_type" = "rel")
+####################################################################################################################
+w:  # added as a dictionary
+  w1: 100
+  w2: 0
+  w3: 0
+  w4: 0
+####################################################################################################################
+################################################ Agent settings ####################################################
+####################################################################################################################
+# algo:                 Algorithm; DQN or DoubleDQN
+# lr_schedule:          Whether to use a schedule for the learning rate; linear or leave empty for no schedule
+# h:                    Length of observation history
+# f:                    Length of global radiation and ambient temperature forecast
+####################################################################################################################
+a:  # added as a dictionary
+  algo: DoubleDQN
+  lr_schedule: #linear
+  h: 100
+  f: 96
+####################################################################################################################
+############################################## Analysis settings ###################################################
+####################################################################################################################
+# dir_no_control:       Results when no control is applied; leave empty if no results are available
+# dir_prop_price:       Results with proportional price; leave empty if no results are available
+# args_duration_curves: Settings for the duration curve plot
+####################################################################################################################
+dir_no_control: "240319_132440_none_none_winter"
+dir_prop: "240310_150456_prop_infl_per_day_dynamic"
+args_duration_curves:  # added as a dictionary
+  flag_axins_max: True
+  flag_axins_min: False
+  axins_max: [0.5, 0.62, 0.48, 0.32]
+  axins_min:
+  axins_max_cords: [-0.05, 0.5, 75, 135]
+  axins_min_cords:
+  axins_x_loc: 0.2
+  axins_y_loc: 25
+  ylim:
+  figsize: (3.3, 1.2)

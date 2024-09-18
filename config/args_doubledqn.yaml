@@ -1,0 +1,72 @@
+#########################################################################################################################
+############################### Parameters that are directly passed to the model ########################################
+#########################################################################################################################
+# learning_starts:          Number of random actions to be performed before training starts
+# learning_rate			    Learning rate for adam optimizer
+#                           If a lr_scheduler is specified in config.yaml, the setting will be updated accordingly
+#                           default: 0.0001
+# train_freq:               Update the model every train_freq steps
+# exploration_fraction:     Fraction of entire training period over which the exploration rate is reduced (linearly);
+#                           default: 0.1
+# exploration_initial_eps:  Initial value of random action probability
+# exploration_final_eps:    Final value of random action probability
+# buffer_size:              Size of the replay buffer(s);
+#                           default: 1000000
+# batch_size:			    Batch size to be used during training
+# seed:                     Seed for the pseudo random generators
+# stats_window_size:        Window size for the rollout logging, specifying the number of episodes to average
+#                           the reported success rate, mean episode length, and mean reward over
+# gradient_steps:           Number of gradient steps after each rollout
+#                           -1 means to do as many gradient steps as steps done in the environment during the rollout
+# gamma:                    Discount factor;
+#                           default: 0.99
+# verbose:                  Verbosity level: 0 for no output,
+#                           1 for info messages (such as device or wrappers used),
+#                           2 for debug messages
+#########################################################################################################################
+model_args:
+  policy: "MultiInputPolicy"
+  learning_starts: 7488  # 78 days
+  learning_rate: 0.00001
+  train_freq: 1
+  exploration_fraction: 0.02
+  exploration_initial_eps: 1.0
+  exploration_final_eps: 0.05
+  buffer_size: 500000
+  batch_size: 64
+  seed: 0
+  stats_window_size: 1
+  gradient_steps: -1
+  gamma: 0.995
+  verbose: 1
+#########################################################################################################################
+######################### Parameters that are directly passed to the feature extractor ##################################
+#########################################################################################################################
+# n_ts:                 Number of time series features
+# hidden_size_lstm:     Size of the hidden state of the LSTM
+# num_layers_lstm:      Number of LSTM layers
+# ! the name for the parameters should not be the same for the feature extractor and the policy net;
+#   otherwise the replacement of values via --config will not work properly
+#########################################################################################################################
+feature_extractor_args:
+  n_ts: 10
+  hidden_size_lstm: 256
+  num_layers_lstm:  1
+#########################################################################################################################
+######################### Parameters that are preprocessed / used in the environment ####################################
+#########################################################################################################################
+# hidden_size_linear:   Dimension of the hidden layers;
+#                       https://stable-baselines3.readthedocs.io/en/master/guide/custom_policy.html
+# num_layers_linear:    Number of fully-connected hidden layers
+#                       default: 2
+# n_prices:             Number of discretized price values
+# action_type:          Type of action space; 'rel' or 'abs'
+#                       'rel': action determines the price change wrt the current price
+#                       'abs': action determines the discrete price
+# rel_actions:          List of actions to be used when action_type is 'rel'
+#########################################################################################################################
+hidden_size_linear: 256
+num_layers_linear: 2
+n_prices: 10
+action_type: "rel"
+rel_actions: [-2, -1, 0, 1, 2]

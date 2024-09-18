@@ -1,0 +1,28 @@
+# This file defines the settings for a sweep with different parameter values.
+# In this example, different seeds and threshold values are tested.
+# To start the sweep, navigate to the project directory in the terminal and run the following command:
+# wandb sweep --project <wandb_project_name> config/config_sweep.yaml
+# Then, you can start one or multiple sweep agents with the following command (this should also be visible in terminal):
+# wandb agent <wandb_username, also referred to as entity>/<wandb_project_name>/<sweep_id>
+program:
+  main.py
+method: grid
+parameters:
+  mode:
+    value: "train"
+  dev_ctrl:
+    value: "dynamic"
+  policy:
+    value: "rl"
+  n_eps:
+    value: 400
+  config:
+    values: [
+      "seed:0,th:40", "seed:1,th:40", "seed:3,th:40",
+      "seed:0,th:60", "seed:1,th:60", "seed:3,th:60",
+    ]
+command:
+  - ${env}
+  - python
+  - ${program}
+  - ${args}

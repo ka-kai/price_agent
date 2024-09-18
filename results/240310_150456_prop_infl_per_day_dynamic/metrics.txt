@@ -1,0 +1,1 @@
+{"sum_p_tot_sq_eval": "7.743242e+06", "max_p_tot_eval": 127.76, "cost_1_eval": 22.03, "cost_2_eval": 0.0, "cost_3_eval": 0.0, "cost_4_eval": 0}
