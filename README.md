@@ -2,9 +2,22 @@
 
 **Author:** Katharina Kaiser, Power Systems Laboratory, ETH Zurich: <kkaiser@ethz.ch>
 
-This repository contains the Python code for the paper:
+This repository contains the Python code for the [paper](https://ieeexplore.ieee.org/document/10694665):
 
-> *K. Kaiser, and G. Hug, "Dynamic Grid Tariffs for Power Peak Reduction Using Reinforcement Learning," in 7th International Conference on Smart Energy Systems and Technologies (SEST 2024), 2024.*
+> *K. Kaiser and G. Hug, "Dynamic Grid Tariffs for Power Peak Reduction Using Reinforcement Learning," in 2024 International Conference on
+Smart Energy Systems and Technologies (SEST), 2024.*
+
+If you make use of code in this repository, please reference the following citation:
+```bibtex
+@INPROCEEDINGS{Kaiser10694665,
+  title={Dynamic Grid Tariffs for Power Peak Reduction Using Reinforcement Learning}, 
+  booktitle={2024 International Conference on Smart Energy Systems and Technologies (SEST)},
+  author={Kaiser, Katharina and Hug, Gabriela},
+  year={2024},
+  doi={10.1109/SEST61601.2024.10694665}
+}
+```
+
 ---
 
 ## Installation
