@@ -50,7 +50,7 @@ class EVs:
             # finally, we only keep the simulation daterange
 
             # Initialize
-            if df_ts.index[-1] - df_ts.index[0] < datetime.timedelta(days=365):
+            if df_ts.index[-1] + datetime.timedelta(hours=self.DT) - df_ts.index[0] < datetime.timedelta(days=365):
                 raise ValueError("The EV data should cover at least one year.")
             df_ts_ext = pd.DataFrame(index=pd.DatetimeIndex(pd.date_range(start=f"{start.year - 1}-01-01", end=f"{end.year + 2}-01-01",
                                                                           freq=f"{self.DT}H", tz=df_ts.index.tz, inclusive="left")),
@@ -60,11 +60,16 @@ class EVs:
             closest_timestamp = timestamps[np.argmin(np.abs(timestamps[timestamps.year == start.year - 1].day_of_year - df_ts.index[0].day_of_year))]
             # Get the data for the next 52 weeks, i.e., 364 days
             data = df_ts.loc[:df_ts.index[0] + datetime.timedelta(weeks=52, hours=-self.DT)].copy()
+            # Set SOC_arrival_home to 1 for EVs that are at home at the beginning of data,
+            # but SOC_arrival_home is NaN (e.g., because the csv file has been truncated)
+            mask = (data.loc[data.index[0], (slice(None), "EV_home")] == 1).values & \
+                   (data.loc[data.index[0], (slice(None), "SOC_arrival_home")].isna()).values
+            data.loc[data.index[0], (self.evs[mask], "SOC_arrival_home")] = 1
             # Neglect the last charging session for EVs that are at home at the end of data
             for ev in self.evs:
-                if data.loc[:, (ev, "EV_home")].tail(1).values == 1:
+                if data.loc[data.index[-1], (ev, "EV_home")] == 1:
                     idx_arrival = data.index[~data.loc[:, (ev, "SOC_arrival_home")].isna()]
-                    data.loc[idx_arrival[-1]:, (ev, slice(None))] = [0, 0, np.nan, np.nan, np.nan]
+                    data.loc[idx_arrival[-1]:, (ev, slice(None))] = [0, np.nan, np.nan, np.nan]
             # Insert the data
             s_insert = closest_timestamp
             for i in range(df_ts_ext.index[-1].year - df_ts_ext.index[0].year):
