@@ -304,12 +304,12 @@ class WHHPs:
         # WH
         fc_group = self.price_fc_group[self.has_wh]
         limit = np.round([dict_price_24h_fc[fc_group[i]][self.K - self.K_block_day_WH[i] - 1] for i in range(self.n_whs)], 4)  # -1 bc index starts at 0
-        WH_u = (price_next <= limit)  # unblock as early as possible if values are the same
+        WH_u = (price_next <= limit).astype(int)  # unblock as early as possible if values are the same
 
         # HP
         fc_group = self.price_fc_group[self.has_hp]
         limit = np.round([dict_price_24h_fc[fc_group[i]][self.K - self.K_block_day_HP[i] - 1] for i in range(self.n_hps)], 4)  # -1 bc index starts at 0
-        HP_u = (price_next <= limit)  # unblock as early as possible if values are the same
+        HP_u = (price_next <= limit).astype(int)  # unblock as early as possible if values are the same
 
         # Verify the actions
         self.WH_u = self._verify_wh(prev_applied=self.prev_applied_WH, action=WH_u)
@@ -431,8 +431,8 @@ class WHHPs:
         p_HP = self._sim_HPs(ts)
 
         if self.flag_save:
-            self.results.append((self.WH_u, self.rho_WH, self.T_prev_WH, p_WH,
-                                 self.HP_u, self.rho_HP, self.T_prev_HP, p_HP))
+            self.results.append((self.WH_u.copy(), self.rho_WH.copy(), self.T_prev_WH.copy(), p_WH,
+                                 self.HP_u.copy(), self.rho_HP.copy(), self.T_prev_HP.copy(), p_HP))
 
         return sum(p_WH), sum(p_HP)
 
